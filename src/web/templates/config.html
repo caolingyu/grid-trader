@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置参数 - Grid Trader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .config-section {
+            transition: all 0.2s;
+        }
+        .config-section:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">配置参数</h1>
+                <div class="flex space-x-2">
+                    <button id="save-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                        保存配置
+                    </button>
+                    <button onclick="closeModal()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        关闭
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 配置表单 -->
+            <form id="config-form" class="space-y-6">
+                <!-- 基础配置 -->
+                <div class="config-section bg-white rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">基础配置</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易模式</label>
+                            <select id="trading_mode" name="trading_mode" 
+                                    class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                <option value="auto">自动模式（根据API密钥决定）</option>
+                                <option value="simulation">模拟模式</option>
+                                <option value="live">实盘模式</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易对</label>
+                            <input type="text" id="symbol" name="symbol" value="--" readonly
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                初始本金 (USDT)
+                                <span id="simulation-sync-hint" class="text-xs text-blue-600" style="display: none;">
+                                    (模拟模式下会自动同步USDT余额)
+                                </span>
+                            </label>
+                            <input type="number" id="initial_principal" name="initial_principal" 
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">基准价格 (USDT)</label>
+                            <input type="number" id="initial_base_price" name="initial_base_price" step="0.0001"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最小交易金额 (USDT)</label>
+                            <input type="number" id="min_trade_amount" name="min_trade_amount" step="0.01"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 模拟模式配置 -->
+                <div id="simulation-config" class="config-section bg-white rounded-lg p-6" style="display: none;">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">模拟模式配置</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                初始USDT余额
+                                <span class="text-xs text-blue-600">(会自动同步到初始本金)</span>
+                            </label>
+                            <input type="number" id="simulation_initial_usdt" name="simulation_initial_usdt" 
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div id="base-asset-config">
+                            <label class="block text-sm font-medium text-gray-700 mb-1" id="base-asset-label">初始基础资产余额</label>
+                            <input type="number" id="simulation_initial_base" name="simulation_initial_base" step="0.0001"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">初始ETH余额</label>
+                            <input type="number" id="simulation_initial_eth" name="simulation_initial_eth" step="0.0001"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">初始BTC余额</label>
+                            <input type="number" id="simulation_initial_btc" name="simulation_initial_btc" step="0.00001"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button type="button" id="reset-simulation-btn" 
+                                class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                            重置模拟账户
+                        </button>
+                        <span class="ml-2 text-sm text-gray-500">重置到初始配置的余额</span>
+                    </div>
+                </div>
+                
+                <!-- 网格配置 -->
+                <div class="config-section bg-white rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">网格配置</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">初始网格大小 (%)</label>
+                            <input type="number" id="initial_grid" name="initial_grid" step="0.1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最小网格大小 (%)</label>
+                            <input type="number" id="min_grid_size" name="min_grid_size" step="0.1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最大网格大小 (%)</label>
+                            <input type="number" id="max_grid_size" name="max_grid_size" step="0.1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 仓位管理 -->
+                <div class="config-section bg-white rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">仓位管理</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最大仓位比例 (%)</label>
+                            <input type="number" id="max_position_ratio" name="max_position_ratio" step="0.01" min="0" max="100"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最小仓位比例 (%)</label>
+                            <input type="number" id="min_position_ratio" name="min_position_ratio" step="0.01" min="0" max="100"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">仓位缩放因子</label>
+                            <input type="number" id="position_scale_factor" name="position_scale_factor" step="0.01"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 风险管理 -->
+                <div class="config-section bg-white rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">风险管理</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最大回撤限制 (%)</label>
+                            <input type="number" id="max_drawdown" name="max_drawdown" step="0.01" max="0"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">日亏损限制 (%)</label>
+                            <input type="number" id="daily_loss_limit" name="daily_loss_limit" step="0.01" max="0"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">风险系数</label>
+                            <input type="number" id="risk_factor" name="risk_factor" step="0.01" min="0" max="1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">风险检查间隔 (秒)</label>
+                            <input type="number" id="risk_check_interval" name="risk_check_interval" step="1" min="10"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统参数 -->
+                <div class="config-section bg-white rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">系统参数</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最大重试次数</label>
+                            <input type="number" id="max_retries" name="max_retries" step="1" min="1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">波动率窗口 (小时)</label>
+                            <input type="number" id="volatility_window" name="volatility_window" step="1" min="1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">冷却时间 (秒)</label>
+                            <input type="number" id="cooldown" name="cooldown" step="1" min="10"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">安全边际</label>
+                            <input type="number" id="safety_margin" name="safety_margin" step="0.01" min="0.1" max="1"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- 状态消息 -->
+            <div id="status-message" class="mt-4 hidden">
+                <div class="rounded-md p-4">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <p id="status-text" class="text-sm font-medium"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentConfig = {};
+        
+        function loadConfig() {
+            showStatus('正在加载配置...', 'info');
+            
+            fetch('/trader-data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API返回数据:', data);
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    currentConfig = data.config || {};
+                    populateForm(currentConfig);
+                    showStatus('配置加载成功', 'success');
+                })
+                .catch(error => {
+                    console.error('加载配置失败:', error);
+                    showStatus(`加载配置失败: ${error.message}`, 'error');
+                    // 使用默认配置
+                    loadDefaultConfig();
+                });
+        }
+        
+        function loadDefaultConfig() {
+            // 加载默认配置
+            const defaultConfig = {
+                trading_params: {
+                    initial_principal: 1000.0,
+                    initial_base_price: 600.0,
+                    min_trade_amount: 20.0,
+                    max_position_ratio: 0.9,
+                    min_position_ratio: 0.1,
+                    max_drawdown: -0.15,
+                    daily_loss_limit: -0.05,
+                    volatility_window: 24,
+                    position_scale_factor: 1.0,
+                    risk_factor: 0.5,
+                    risk_check_interval: 60,
+                    max_retries: 3,
+                    cooldown: 30,
+                    safety_margin: 0.95,
+                    initial_grid: 2.0,
+                    min_grid_size: 1.0,
+                    max_grid_size: 4.0
+                }
+            };
+            currentConfig = defaultConfig;
+            populateForm(defaultConfig);
+            showStatus('已加载默认配置', 'info');
+        }
+        
+        function populateForm(config) {
+            // 确保config结构正确
+            const tradingParams = config?.trading_params || {};
+            
+            // 设置交易对信息
+            if (config.symbol) {
+                document.getElementById('symbol').value = config.symbol;
+            }
+            
+            // 填充表单字段
+            const fields = [
+                'initial_principal', 'initial_base_price', 'min_trade_amount',
+                'initial_grid', 'min_grid_size', 'max_grid_size',
+                'max_position_ratio', 'min_position_ratio', 'position_scale_factor',
+                'max_drawdown', 'daily_loss_limit', 'risk_factor', 'risk_check_interval',
+                'max_retries', 'volatility_window', 'cooldown', 'safety_margin'
+            ];
+            
+            fields.forEach(field => {
+                const element = document.getElementById(field);
+                if (element && tradingParams[field] !== undefined) {
+                    let value = tradingParams[field];
+                    
+                    // 处理百分比字段 (从小数转换为百分比)
+                    if (['max_position_ratio', 'min_position_ratio', 'max_drawdown', 'daily_loss_limit'].includes(field)) {
+                        value = (parseFloat(value) * 100).toFixed(2);
+                    }
+                    
+                    element.value = value;
+                }
+            });
+            
+            console.log('表单已填充，配置数据:', tradingParams);
+        }
+        
+        async function saveConfig() {
+            try {
+                const formData = new FormData(document.getElementById('config-form'));
+                const config = {};
+                
+                // 收集表单数据
+                for (let [key, value] of formData.entries()) {
+                    if (value !== '') {
+                        // 百分比字段转换为小数
+                        if (['max_position_ratio', 'min_position_ratio', 'max_drawdown', 'daily_loss_limit'].includes(key)) {
+                            config[key] = parseFloat(value) / 100;
+                        } else {
+                            config[key] = isNaN(parseFloat(value)) ? value : parseFloat(value);
+                        }
+                    }
+                }
+                
+                // 保存基础配置
+                const response = await fetch('/update-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showStatus(result.error || '保存基础配置失败', 'error');
+                    return;
+                }
+                
+                // 如果是模拟模式，保存模拟配置
+                const tradingMode = document.getElementById('trading_mode').value;
+                if (tradingMode === 'simulation') {
+                    await saveSimulationConfig();
+                }
+                
+                showStatus('配置保存成功', 'success');
+                
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                showStatus('保存配置失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 保存模拟配置
+        async function saveSimulationConfig() {
+            try {
+                // 动态构建模拟配置
+                const simulationConfig = {
+                    simulation_balances: {
+                        USDT: parseFloat(document.getElementById('simulation_initial_usdt').value) || 1000,
+                        ETH: parseFloat(document.getElementById('simulation_initial_eth').value) || 0,
+                        BTC: parseFloat(document.getElementById('simulation_initial_btc').value) || 0
+                    },
+                    initial_principal: parseFloat(document.getElementById('initial_principal').value) || 1000
+                };
+                
+                // 添加当前交易对的基础资产余额
+                const baseAssetInput = document.getElementById('simulation_initial_base');
+                if (baseAssetInput && baseAssetInput.dataset.asset) {
+                    simulationConfig.simulation_balances[baseAssetInput.dataset.asset] = 
+                        parseFloat(baseAssetInput.value) || 0;
+                }
+                
+                const response = await fetch('/api/simulation/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(simulationConfig)
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || '保存模拟配置失败');
+                }
+            } catch (error) {
+                console.error('保存模拟配置失败:', error);
+                throw error;
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status-message');
+            const statusText = document.getElementById('status-text');
+            
+            statusText.textContent = message;
+            
+            // 根据类型设置不同的样式
+            let bgClass, textClass;
+            switch(type) {
+                case 'success':
+                    bgClass = 'bg-green-50';
+                    textClass = 'text-green-800';
+                    break;
+                case 'error':
+                    bgClass = 'bg-red-50';
+                    textClass = 'text-red-800';
+                    break;
+                case 'info':
+                    bgClass = 'bg-blue-50';
+                    textClass = 'text-blue-800';
+                    break;
+                default:
+                    bgClass = 'bg-gray-50';
+                    textClass = 'text-gray-800';
+            }
+            
+            statusDiv.className = `mt-4 rounded-md p-4 ${bgClass}`;
+            statusText.className = `text-sm font-medium ${textClass}`;
+            statusDiv.classList.remove('hidden');
+            
+            // 根据类型设置不同的自动隐藏时间
+            const timeout = type === 'error' ? 5000 : 3000;
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, timeout);
+        }
+        
+        // 关闭模态框
+        function closeModal() {
+            // 如果在iframe中，通知父窗口关闭模态框
+            if (window.parent !== window) {
+                const modal = window.parent.document.querySelector('.fixed.inset-0');
+                if (modal) {
+                    modal.remove();
+                }
+            } else {
+                // 如果不在iframe中，可能是直接访问的页面
+                window.close();
+            }
+        }
+        
+        // 事件监听器
+        document.getElementById('save-btn').addEventListener('click', saveConfig);
+        
+        // 页面初始化
+        async function init() {
+            await loadConfig();
+            await loadSimulationConfig();
+            setupEventListeners();
+        }
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 交易模式切换
+            document.getElementById('trading_mode').addEventListener('change', function() {
+                toggleSimulationConfig();
+            });
+            
+            // 重置模拟账户
+            document.getElementById('reset-simulation-btn').addEventListener('click', async function() {
+                if (confirm('确定要重置模拟账户到初始状态吗？这将清除所有交易记录和当前余额。')) {
+                    await resetSimulation();
+                }
+            });
+        }
+        
+        // 切换模拟配置显示
+        function toggleSimulationConfig() {
+            const tradingMode = document.getElementById('trading_mode').value;
+            const simulationConfig = document.getElementById('simulation-config');
+            const syncHint = document.getElementById('simulation-sync-hint');
+            
+            if (tradingMode === 'simulation') {
+                simulationConfig.style.display = 'block';
+                if (syncHint) syncHint.style.display = 'inline';
+            } else {
+                simulationConfig.style.display = 'none';
+                if (syncHint) syncHint.style.display = 'none';
+            }
+        }
+        
+        // 加载模拟配置
+        async function loadSimulationConfig() {
+            try {
+                const response = await fetch('/api/simulation/config');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 设置交易模式
+                    document.getElementById('trading_mode').value = data.trading_mode || 'auto';
+                    
+                    // 设置模拟余额
+                    if (data.simulation_balances) {
+                        document.getElementById('simulation_initial_usdt').value = data.simulation_balances.USDT || 1000;
+                        document.getElementById('simulation_initial_eth').value = data.simulation_balances.ETH || 0;
+                        document.getElementById('simulation_initial_btc').value = data.simulation_balances.BTC || 0;
+                        
+                        // 动态设置基础资产余额
+                        const baseAssetInput = document.getElementById('simulation_initial_base');
+                        if (data.base_asset && baseAssetInput) {
+                            baseAssetInput.dataset.asset = data.base_asset;
+                            baseAssetInput.value = data.simulation_balances[data.base_asset] || 0;
+                            
+                            // 更新标签
+                            const baseAssetLabel = document.getElementById('base-asset-label');
+                            if (baseAssetLabel) {
+                                baseAssetLabel.textContent = `初始${data.base_asset}余额`;
+                            }
+                        }
+                    }
+                    
+                    // 切换显示
+                    toggleSimulationConfig();
+                } else {
+                    console.log('获取模拟配置失败，可能当前不是模拟模式');
+                }
+            } catch (error) {
+                console.error('加载模拟配置失败:', error);
+            }
+        }
+        
+        // 重置模拟账户
+        async function resetSimulation() {
+            try {
+                const response = await fetch('/api/simulation/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('模拟账户已重置到初始状态', 'success');
+                } else {
+                    showStatus('重置失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('重置模拟账户失败:', error);
+                showStatus('重置失败: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html> 

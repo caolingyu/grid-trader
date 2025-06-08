@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Trader - 网格交易系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'ui-sans-serif', 'system-ui'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        success: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        danger: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card-elevated {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-elevated:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        }
+        .profit-positive { color: #059669; }
+        .profit-negative { color: #dc2626; }
+        .status-indicator {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .log-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .log-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .log-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        .log-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .section-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%);
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-white">Grid Trader</h1>
+                            <p class="text-xs text-blue-200">Professional Trading System</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 bg-white/10 rounded-full px-3 py-1">
+                        <div id="status-indicator" class="w-3 h-3 rounded-full bg-green-400 status-indicator"></div>
+                        <span id="status-text" class="text-sm text-white font-medium">运行正常</span>
+                    </div>
+                    <button id="refresh-btn" class="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="min-h-screen pb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- 核心指标卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- 总资产 -->
+                <div class="metric-card card-elevated rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-600 mb-1">总资产</p>
+                            <p id="total-assets" class="text-3xl font-bold text-slate-900">--</p>
+                            <p class="text-xs text-slate-500 mt-1">USDT</p>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 总盈亏 -->
+                <div class="metric-card card-elevated rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-600 mb-1">总盈亏</p>
+                            <p id="total-profit" class="text-3xl font-bold">--</p>
+                            <p id="profit-rate" class="text-xs text-slate-500 mt-1">--</p>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 当前价格 -->
+                <div class="metric-card card-elevated rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-600 mb-1">当前价格</p>
+                            <p id="current-price" class="text-3xl font-bold text-slate-900">--</p>
+                            <p id="price-change" class="text-xs text-slate-500 mt-1">--</p>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 网格状态 -->
+                <div class="metric-card card-elevated rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-600 mb-1">网格大小</p>
+                            <p id="grid-size" class="text-3xl font-bold text-slate-900">--</p>
+                            <p class="text-xs text-slate-500 mt-1">%</p>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容区域 -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                
+                <!-- 左侧主面板 -->
+                <div class="xl:col-span-2 space-y-8">
+                    
+                    <!-- 交易信息 -->
+                    <div class="bg-white card-elevated rounded-xl overflow-hidden">
+                        <div class="section-header px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-lg font-bold">交易信息</h2>
+                                <span id="trading-symbol" class="px-3 py-1 text-sm font-medium bg-white/20 rounded-full">--</span>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- 价格信息 -->
+                                <div class="space-y-4">
+                                    <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">价格信息</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">基准价格</span>
+                                            <span id="base-price" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">上轨价格</span>
+                                            <span id="upper-band" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">下轨价格</span>
+                                            <span id="lower-band" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">触发阈值</span>
+                                            <span id="threshold" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 仓位信息 -->
+                                <div class="space-y-4">
+                                    <h3 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">仓位信息</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span id="quote-asset-label" class="text-sm font-medium text-slate-600">报价资产 余额</span>
+                                            <span id="quote-balance" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span id="base-asset-label" class="text-sm font-medium text-slate-600">基础资产 余额</span>
+                                            <span id="base-balance" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">仓位比例</span>
+                                            <span id="position-ratio" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                            <span class="text-sm font-medium text-slate-600">目标委托金额</span>
+                                            <span id="target-amount" class="font-semibold text-slate-900">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 交易日志 -->
+                    <div class="bg-white card-elevated rounded-xl overflow-hidden">
+                        <div class="section-header px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-lg font-bold">交易日志</h2>
+                                <div class="flex items-center space-x-2">
+                                    <select id="log-level-filter" class="bg-white/20 text-white text-sm rounded px-2 py-1 border border-white/30">
+                                        <option value="">全部级别</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                    <button id="clear-logs" class="text-white/80 hover:text-white text-sm px-2 py-1">清空</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="log-scroll">
+                                <div id="logs-container" class="space-y-2">
+                                    <div class="text-center text-slate-500 py-4">正在加载日志...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧控制面板 -->
+                <div class="space-y-8">
+                    
+                    <!-- 系统状态 -->
+                    <div class="bg-white card-elevated rounded-xl overflow-hidden">
+                        <div class="section-header px-6 py-4">
+                            <h2 class="text-lg font-bold">系统状态</h2>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">运行状态</span>
+                                <span id="system-status" class="px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800">运行中</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">最后更新</span>
+                                <span id="last-update" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">运行时长</span>
+                                <span id="uptime" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 风险监控 -->
+                    <div class="bg-white card-elevated rounded-xl overflow-hidden">
+                        <div class="section-header px-6 py-4">
+                            <h2 class="text-lg font-bold">风险监控</h2>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">当前回撤</span>
+                                <span id="current-drawdown" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">最大回撤限制</span>
+                                <span id="max-drawdown-limit" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">日盈亏</span>
+                                <span id="daily-pnl" class="text-sm font-semibold">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">风险等级</span>
+                                <span id="risk-level" class="px-2 py-1 text-xs font-bold rounded-full">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 配置参数 -->
+                    <div class="bg-white card-elevated rounded-xl overflow-hidden">
+                        <div class="section-header px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-lg font-bold">配置参数</h2>
+                                <button id="edit-config" class="text-white/80 hover:text-white text-sm px-3 py-1 bg-white/10 rounded-md hover:bg-white/20 transition-all">
+                                    编辑
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">交易模式</span>
+                                <span id="trading-mode" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">初始网格</span>
+                                <span id="initial-grid" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">最大仓位比例</span>
+                                <span id="max-position" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <span class="text-sm font-medium text-slate-600">风险系数</span>
+                                <span id="risk-factor" class="text-sm font-semibold text-slate-900">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置编辑模态框 -->
+    <div id="config-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                <div class="section-header px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold">编辑配置参数</h3>
+                        <button id="close-config-modal" class="text-white/80 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                    <iframe id="config-iframe" src="/config" class="w-full h-96 border-0 rounded-lg"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Global variables
+        let updateInterval;
+        let logsData = [];
+        
+        // 数据更新功能
+        function updateData() {
+            Promise.all([
+                fetch('/status').then(r => r.json()).catch(() => ({})),
+                fetch('/api/logs?limit=50').then(r => r.json()).catch(() => ({logs: []})),
+                fetch('/trader-data').then(r => r.json()).catch(() => ({}))
+            ]).then(([statusData, logsData, traderData]) => {
+                updateUI(statusData);
+                updateLogs(logsData.logs || []);
+                updateConfig(traderData.config || {});
+                updateRiskMonitoring(statusData, traderData);
+                updateStatus('online');
+            }).catch(error => {
+                console.error('Error fetching data:', error);
+                updateStatus('offline');
+            });
+        }
+        
+        function updateUI(data) {
+            // 更新基本指标
+            updateElement('total-assets', data.total_assets?.toFixed(2) || '--');
+            updateElement('current-price', data.current_price?.toFixed(4) || '--');
+            updateElement('grid-size', data.grid_size?.toFixed(1) || '--');
+            
+            // 更新盈亏信息
+            const totalProfit = data.total_profit || 0;
+            const profitElement = document.getElementById('total-profit');
+            const profitRateElement = document.getElementById('profit-rate');
+            
+            if (profitElement) {
+                profitElement.textContent = totalProfit.toFixed(2);
+                profitElement.className = totalProfit >= 0 ? 
+                    'text-3xl font-bold profit-positive' : 
+                    'text-3xl font-bold profit-negative';
+            }
+            
+            if (data.total_assets > 0 && profitRateElement) {
+                const profitRate = ((totalProfit / data.total_assets) * 100).toFixed(2);
+                profitRateElement.textContent = `${profitRate}%`;
+                profitRateElement.className = totalProfit >= 0 ? 
+                    'text-xs profit-positive mt-1' : 
+                    'text-xs profit-negative mt-1';
+            }
+            
+            // 更新交易信息
+            updateElement('base-price', data.base_price?.toFixed(4) || '--');
+            updateElement('upper-band', data.grid_upper_band?.toFixed(4) || '--');
+            updateElement('lower-band', data.grid_lower_band?.toFixed(4) || '--');
+            updateElement('threshold', data.threshold ? (data.threshold * 100).toFixed(3) + '%' : '--');
+            
+            // 更新交易对信息
+            updateElement('trading-symbol', data.symbol || '--');
+            
+            // 动态更新资产名称和余额
+            if (data.quote_asset && data.base_asset) {
+                updateElement('quote-asset-label', `${data.quote_asset} 余额`);
+                updateElement('base-asset-label', `${data.base_asset} 余额`);
+            }
+            
+            // 更新余额信息
+            updateElement('quote-balance', data.quote_balance?.toFixed(2) || '--');
+            updateElement('base-balance', data.base_balance?.toFixed(4) || '--');
+            updateElement('position-ratio', data.position_percentage?.toFixed(1) + '%' || '--');
+            updateElement('target-amount', data.target_order_amount?.toFixed(2) || '--');
+            
+            // 更新时间戳
+            updateElement('last-update', new Date().toLocaleTimeString());
+        }
+        
+        function updateLogs(logs) {
+            logsData = logs;
+            displayLogs();
+        }
+        
+        function displayLogs(filteredLogs = logsData) {
+            const container = document.getElementById('logs-container');
+            if (!container) return;
+            
+            if (!filteredLogs || filteredLogs.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-500 py-4">暂无日志数据</div>';
+                return;
+            }
+            
+            container.innerHTML = filteredLogs.slice(0, 20).map(log => `
+                <div class="flex items-start space-x-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                    <div class="flex-shrink-0 w-2 h-2 rounded-full mt-2 ${getLogLevelColor(log.level)}"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+                            <span>${new Date(log.timestamp).toLocaleTimeString()}</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-medium ${getLogLevelBadge(log.level)}">${log.level}</span>
+                            <span>${log.module}</span>
+                        </div>
+                        <p class="text-sm text-slate-900">${log.message}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateConfig(config) {
+            updateElement('trading-mode', config.trading_mode || '--');
+            updateElement('initial-grid', config.initial_grid ? config.initial_grid + '%' : '--');
+            updateElement('max-position', config.max_position_ratio ? config.max_position_ratio + '%' : '--');
+            updateElement('risk-factor', config.risk_factor || '--');
+        }
+        
+        function updateRiskMonitoring(statusData, traderData) {
+            // 计算当前回撤
+            const initialAssets = traderData.config?.initial_principal || 1000;
+            const currentAssets = statusData.total_assets || 0;
+            const drawdown = currentAssets > 0 ? (1 - currentAssets / initialAssets) * 100 : 0;
+            
+            updateElement('current-drawdown', drawdown.toFixed(2) + '%');
+            updateElement('max-drawdown-limit', traderData.config?.max_drawdown ? traderData.config.max_drawdown + '%' : '--');
+            
+            // 更新风险等级
+            const riskLevelElement = document.getElementById('risk-level');
+            if (riskLevelElement) {
+                let riskLevel = 'low';
+                let riskText = '低风险';
+                let riskClass = 'bg-green-100 text-green-800';
+                
+                if (Math.abs(drawdown) > 10) {
+                    riskLevel = 'high';
+                    riskText = '高风险';
+                    riskClass = 'bg-red-100 text-red-800';
+                } else if (Math.abs(drawdown) > 5) {
+                    riskLevel = 'medium';
+                    riskText = '中风险';
+                    riskClass = 'bg-yellow-100 text-yellow-800';
+                }
+                
+                riskLevelElement.textContent = riskText;
+                riskLevelElement.className = `px-2 py-1 text-xs font-bold rounded-full ${riskClass}`;
+            }
+            
+            // 更新日盈亏 (简化版本，实际需要从后端获取)
+            const dailyPnl = statusData.total_profit || 0;
+            const dailyPnlElement = document.getElementById('daily-pnl');
+            if (dailyPnlElement) {
+                dailyPnlElement.textContent = dailyPnl.toFixed(2);
+                dailyPnlElement.className = dailyPnl >= 0 ? 
+                    'text-sm font-semibold profit-positive' : 
+                    'text-sm font-semibold profit-negative';
+            }
+        }
+        
+        function updateStatus(status) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            if (status === 'online') {
+                indicator.className = 'w-3 h-3 rounded-full bg-green-400 status-indicator';
+                text.textContent = '运行正常';
+                text.className = 'text-sm font-medium text-white';
+            } else {
+                indicator.className = 'w-3 h-3 rounded-full bg-red-400 status-indicator';
+                text.textContent = '连接中断';
+                text.className = 'text-sm font-medium text-white';
+            }
+        }
+        
+        function updateElement(id, value) {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value;
+        }
+        
+        function getLogLevelColor(level) {
+            const colors = {
+                'INFO': 'bg-blue-400',
+                'WARNING': 'bg-yellow-400', 
+                'ERROR': 'bg-red-400',
+                'DEBUG': 'bg-gray-400'
+            };
+            return colors[level] || 'bg-gray-400';
+        }
+        
+        function getLogLevelBadge(level) {
+            const badges = {
+                'INFO': 'bg-blue-100 text-blue-800',
+                'WARNING': 'bg-yellow-100 text-yellow-800',
+                'ERROR': 'bg-red-100 text-red-800',
+                'DEBUG': 'bg-gray-100 text-gray-800'
+            };
+            return badges[level] || 'bg-gray-100 text-gray-800';
+        }
+        
+        // 事件监听器
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化数据更新
+            updateData();
+            updateInterval = setInterval(updateData, 2000);
+            
+            // 刷新按钮
+            document.getElementById('refresh-btn')?.addEventListener('click', updateData);
+            
+            // 日志过滤
+            document.getElementById('log-level-filter')?.addEventListener('change', (e) => {
+                const level = e.target.value;
+                const filtered = level ? logsData.filter(log => log.level === level) : logsData;
+                displayLogs(filtered);
+            });
+            
+            // 清空日志
+            document.getElementById('clear-logs')?.addEventListener('click', () => {
+                document.getElementById('logs-container').innerHTML = 
+                    '<div class="text-center text-slate-500 py-4">日志已清空</div>';
+            });
+            
+            // 配置编辑
+            document.getElementById('edit-config')?.addEventListener('click', () => {
+                document.getElementById('config-modal').classList.remove('hidden');
+            });
+            
+            document.getElementById('close-config-modal')?.addEventListener('click', () => {
+                document.getElementById('config-modal').classList.add('hidden');
+            });
+            
+            // 点击模态框背景关闭
+            document.getElementById('config-modal')?.addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    document.getElementById('config-modal').classList.add('hidden');
+                }
+            });
+        });
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html> 
