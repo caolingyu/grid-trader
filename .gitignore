@@ -123,3 +123,4 @@ data/
 update_git.ps1
 
 ARCHIVE
+.DS_Store
