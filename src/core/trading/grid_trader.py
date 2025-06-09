@@ -133,22 +133,69 @@ class GridTrader:
 
     async def _setup_base_price(self):
         """设置基准价格"""
+        # 优先使用币种配置中的基准价格
         if self.config.INITIAL_BASE_PRICE > 0:
             self.base_price = self.config.INITIAL_BASE_PRICE
-            self.logger.logger.info(f"使用预设基准价: {self.base_price}")
+            self.logger.logger.info(f"使用币种配置基准价: {self.base_price}")
         else:
-            self.base_price = await self._get_latest_price()
-            self.logger.logger.info(f"使用实时基准价: {self.base_price}")
+            # 如果未配置基准价格，使用智能计算
+            self.logger.logger.info("未配置基准价格，开始智能计算...")
+            await self._calculate_smart_base_price()
 
-        if self.base_price is None:
-            raise ValueError("无法获取当前价格")
+        if self.base_price is None or self.base_price <= 0:
+            raise ValueError("无法获取有效的基准价格")
 
         # 记录价格差异
         market_price = await self._get_latest_price()
-        price_diff = (market_price - self.base_price) / self.base_price * 100
-        self.logger.logger.info(
-            f"市场价格: {market_price:.4f} | 价差: {price_diff:+.2f}%"
-        )
+        if market_price:
+            price_diff = (market_price - self.base_price) / self.base_price * 100
+            self.logger.logger.info(
+                f"市场价格: {market_price:.4f} | 基准价格: {self.base_price:.4f} | 价差: {price_diff:+.2f}%"
+            )
+
+    async def _calculate_smart_base_price(self):
+        """智能计算基准价格"""
+        try:
+            from src.utils.price_calculator import PriceCalculator
+            
+            calculator = PriceCalculator()
+            
+            # 尝试多种计算方法
+            methods = ["sma_7d", "ema_7d", "median_7d", "bollinger_middle"]
+            calculated_prices = []
+            
+            for method in methods:
+                price = await calculator.calculate_smart_base_price(
+                    self.exchange, self.symbol, method
+                )
+                if price and price > 0:
+                    calculated_prices.append(price)
+                    self.logger.logger.info(f"{method}计算结果: {price:.4f}")
+            
+            if calculated_prices:
+                # 使用多种方法的平均值作为基准价格
+                import statistics
+                self.base_price = statistics.mean(calculated_prices)
+                self.logger.logger.info(f"智能计算基准价格: {self.base_price:.4f} (基于{len(calculated_prices)}种方法)")
+                
+                # 验证基准价格合理性
+                current_price = await self._get_latest_price()
+                if current_price and calculator.validate_base_price(self.base_price, current_price):
+                    self.logger.logger.info("基准价格验证通过")
+                else:
+                    self.logger.logger.warning("基准价格偏离较大，使用当前市场价格")
+                    self.base_price = current_price
+            else:
+                # 如果智能计算失败，使用当前市场价格
+                self.logger.logger.warning("智能计算失败，使用当前市场价格")
+                self.base_price = await self._get_latest_price()
+                
+        except Exception as e:
+            self.logger.logger.error(f"智能计算基准价格失败: {str(e)}")
+            # 降级使用当前市场价格
+            self.base_price = await self._get_latest_price()
+            if self.base_price:
+                self.logger.logger.info(f"降级使用实时市场价格: {self.base_price}")
 
     async def _get_latest_price(self) -> Optional[float]:
         """获取最新价格"""

@@ -36,6 +36,9 @@ SYMBOL_CONFIG = {
     'max_position_ratio': 0.9,
     'min_position_ratio': 0.1,
     
+    # 初始基准价格配置 (如果为0或不设置，将智能计算)
+    'initial_base_price': 0.0,
+    
     # 币种特定描述
     'description': 'BNB/USDT 网格交易配置 - 适用于中等波动性交易',
     'recommended_capital': 1000.0,  # 推荐最小资金

@@ -48,7 +48,8 @@ class TradingConfig(BaseConfig):
 
         # 初始配置
         self.INITIAL_PRINCIPAL = self.get_env_float("INITIAL_PRINCIPAL", 0.0)
-        self.INITIAL_BASE_PRICE = self.get_env_float("INITIAL_BASE_PRICE", 0.0)
+        # 初始基准价格现在从币种配置文件获取，不再从环境变量读取
+        self.INITIAL_BASE_PRICE = 0.0  # 默认值，将在币种配置中设置
 
         # 系统参数
         self.MAX_RETRIES = self.get_env_int("MAX_RETRIES", 5)
@@ -127,9 +128,13 @@ class TradingConfig(BaseConfig):
             if "risk_params" in config:
                 self.RISK_PARAMS.update(config["risk_params"])
 
+            # 更新初始基准价格
+            if "initial_base_price" in config:
+                self.INITIAL_BASE_PRICE = float(config["initial_base_price"])
+
             # 更新其他参数
             for key, value in config.items():
-                if key not in ["grid_params", "risk_params"] and hasattr(
+                if key not in ["grid_params", "risk_params", "initial_base_price"] and hasattr(
                     self, key.upper()
                 ):
                     setattr(self, key.upper(), value)
